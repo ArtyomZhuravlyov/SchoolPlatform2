@@ -1,0 +1,43 @@
+﻿@page "/"
+@using SchoolPlatform2.DataAccess;
+@inject HttpClient Http
+
+
+
+<PageTitle>Index</PageTitle>
+
+<h1>Hello, world!</h1>
+
+Welcome to your new app.
+
+<SurveyPrompt Title="How is Blazor working for you?" />
+
+@*<iframe src="https://jazz.sber.ru/7434yc?psw=OAUOUBgJH0UMFQlGRx0IVgMfFA" height="500px" width="500px"></iframe>*@
+@*<iframe src="https://jazz.sber.ru/" allow="camera; microphone; display-capture" height="500px" width="500px"></iframe>*@
+
+<CreateEditGroup></CreateEditGroup>
+<CreateEditStudent></CreateEditStudent>
+
+@code {
+
+    protected override async Task OnInitializedAsync()
+    {
+        var a = await Http.GetFromJsonAsync<List<Group>>("api/Group/GetGroups");
+        if (a.Count == 0)
+        {
+            await Http.GetFromJsonAsync<bool>("api/Group/Init");
+        }
+        //Group group = new Group();
+        //group.Name = "группа 1";
+        //using var response = Http.PostAsJsonAsync("api/Group/CreateGroup", group);
+
+
+
+        //var _groups = await Http.GetFromJsonAsync<List<Group>>("api/Group/GetGroups");
+        //_groups = _db.Groups.ToList();
+        //educationalInstitutions = _db.EducationalInstitutions.Include(x => x.Groups).ToList();
+
+    }
+}
+
+

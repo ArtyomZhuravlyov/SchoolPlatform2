@@ -1,0 +1,81 @@
+﻿@using SchoolPlatform2.Shared.DTO;
+
+@inject HttpClient Http
+
+
+@*@if (_isLoading)
+{
+    <div>Загрузка</div>
+}
+else
+{
+    <div>@_mes</div>
+
+    <EditForm class="new" Model="Course" OnValidSubmit="OnValidSubmitAsync">
+        <DataAnnotationsValidator />
+
+        <div class="item">
+            <div class="main_name">Название</div>
+            <InputText @bind-Value="Course.Name"></InputText>
+        </div>
+
+        <div class="item">
+            <div class="main_name">Описание</div>
+            <InputText @bind-Value="Course.Description"></InputText>
+        </div>
+
+
+        <button class="save_btn">@_messageBtn</button>
+    </EditForm>
+
+
+    <button @onclick="() =>  _lesson = new LessonDTO()">Домашнее задание</button>
+    <div class="table_admin">
+        <table border="1">
+            <tr>
+              
+                <th></th>
+                <th>Название</th>
+            </tr>
+
+            @foreach (var item in _lessons)
+            {
+                <tr>
+
+                    <td>
+                        <div class="edit_delete_item" @onclick="(()=>OpenChanged(item))"><img src="img\edit.png" alt=""></div>
+                    </td>
+                    <td class="nowrap">@item.Name</td>
+                </tr>
+            }
+        </table>
+    </div>
+
+    @if (_lesson != null)
+    {
+        <CreateEditLesson Lesson="_lesson"></CreateEditLesson>
+    }
+}
+
+*@
+
+@code {
+
+    [Parameter] public LessonDTO Lesson { get; set; }
+
+    [Parameter] public EventCallback RefreshListCourse { get; set; }
+
+    bool _isLoading;
+    bool _edit;
+    string _mes = "";
+    string _messageBtn = "";
+    List<LessonDTO> _lessons;
+    LessonDTO _lesson;
+    string _temp = "-1";
+
+
+    private void OpenChanged(LessonDTO lesson)
+    {
+        _lesson = lesson;
+    }
+}

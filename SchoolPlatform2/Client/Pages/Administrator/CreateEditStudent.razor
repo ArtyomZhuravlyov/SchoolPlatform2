@@ -1,0 +1,277 @@
+﻿@using Newtonsoft.Json;
+@using SchoolPlatform2.DataAccess.UserDA;
+@using SchoolPlatform2.DataAccess;
+@using SchoolPlatform2.Shared;
+@using System.Text;
+@inject HttpClient Http
+@*@inject ClientUserService _userService*@
+
+@if (_isLoading)
+{
+    <div>Загрузка</div>
+}
+else
+{
+    <div>@_mes</div>
+
+    <EditForm class="new" Model="Student" OnValidSubmit="OnValidSubmitAsync">
+        <ObjectGraphDataAnnotationsValidator />
+        <div class="item">
+            <div class="main_name">Телефон (ребёнка/преподавателя)</div>
+            <InputText @bind-Value="Student.User.Phone"></InputText>
+        </div>
+        <div class="item">
+            <div class="main_name">Имя</div>
+            <InputText @bind-Value="Student.User.Name"></InputText>
+        </div>
+        <div class="item">
+            <div class="main_name">Фамилия</div>
+            <InputText @bind-Value="Student.User.LastName"></InputText>
+        </div>
+        <div class="item">
+            <div class="main_name">Email</div>
+            <InputText @bind-Value="Student.User.Email"></InputText>
+        </div>
+
+        <div class="item">
+            <div class="main_name">Пароль</div>
+            <InputText @bind-Value="Student.User.PasswordHash"></InputText>
+        </div>
+
+        <div class="item">
+            <div class="main_name">Телефон родителя</div>
+            <InputText @bind-Value="Student.PhoneParent"></InputText>
+        </div>
+
+
+        <div class="item long_item_short_select">
+                <div class="main_name">Добавить группу</div>
+                <InputSelect Value="@_temp" ValueExpression="@(()=>_temp)" ValueChanged="@((string value) => SelectAndAddGroup(int.Parse(value)))">
+                    <option selected value="-1">Выберите группу</option>
+                    @foreach (var item in _groups)
+                    {
+                        <option value="@item.Id">@item.Name</option>
+                    }
+                </InputSelect>
+        </div>
+        @if (Student.Groups.Count > 0)
+        {
+            <div class="item long_item_short_select">
+                <div class="groups_with_teacher">
+                    <div class="main_name">Привязанные группы</div>
+                    @foreach (var item in Student.Groups)
+                    {
+                        <div class="group_with_teacher">
+                            <div class="group_with_teacher_name">
+                                @item.Name
+                            </div>
+                            <div @onclick="()=>DelGroup(item.Id)" class="del_group_with_teacher"><img src="img\del.png" alt=""></div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+  
+        <button class="save_btn">@_messageBtn</button>
+    </EditForm>
+
+}
+
+
+@code {
+    [Parameter] public Student Student { get; set; }
+
+
+    bool _isLoading;
+    bool _edit;
+    string _mes = "";
+    string _messageBtn = "";
+    List<Group> _groups;
+    string _temp = "-1";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        _edit = Student != null;
+        _messageBtn = _edit ? SD.BTN_CHANGE : SD.BTN_ADD;
+
+        if (!_edit)
+        {
+            Student = new();
+            Student.User = new User();
+            //Student.Group = new Group() { Id = -1 };
+        }
+
+        _groups = await Http.GetFromJsonAsync<List<Group>>("api/Group/GetGroups");
+        //_groups = _db.Groups.ToList();
+        //educationalInstitutions = _db.EducationalInstitutions.Include(x => x.Groups).ToList();
+        _isLoading = false;
+    }
+
+    private void DelGroup(int groupId)
+    {
+        _groups.Add(Student.Groups.First(x => x.Id == groupId));
+        Student.Groups.RemoveAll(x => x.Id == groupId);
+    }
+
+    private void SelectAndAddGroup(int groupId)
+    {
+        Student.Groups.Add(_groups.First(x => x.Id == groupId));
+        _groups.RemoveAll(x => x.Id == groupId);
+    }
+
+
+    private async Task OnValidSubmitAsync()
+    {
+        // await Http.GetFromJsonAsync<bool>("api/User/GetVerifyPhone");
+
+        var content = JsonConvert.SerializeObject(Student.User);
+        var bodyContent = new StringContent(content, Encoding.UTF8, "application/json");
+
+        var response = await Http.PostAsync("api/User/VerifyPhone", bodyContent);
+        string responseResult = response.Content.ReadAsStringAsync().Result;
+
+        if (response.IsSuccessStatusCode)
+        {
+            var resultOk = JsonConvert.DeserializeObject<bool>(responseResult);
+            if (!resultOk)
+            {
+                _mes = "Пользователь с таким телефоном уже существует";
+                return;
+            }
+        }
+        else
+        {
+            _mes = responseResult;
+            return;
+        }
+        //var userRepeat = (await _userManager.FindByNameAsync(UserModelForm.UserName));
+
+        //if (userRepeat != null)
+        //{
+        //    _mes = "Пользователь с таким именем уже существует";
+        //    return;
+        //}
+
+        //userRepeat = (await _userManager.FindByEmailAsync(UserModelForm.Email));
+
+        //if (userRepeat != null)
+        //{
+        //    _mes = "Пользователь с такой почтой уже существует";
+        //    return;
+        //}
+
+
+
+
+
+        //string password = Student.User.PasswordHash;
+        //if(!_edit)
+        //    Student.User.PasswordHash = HashHelper.GetHash(Student.User.PasswordHash);
+
+
+        try
+        {
+            Student.User.ImgAvatar = "1";
+            //Student.Group = _groups.First(x => x.Id == Student.Group.Id);
+            content = JsonConvert.SerializeObject(Student);
+            bodyContent = new StringContent(content, Encoding.UTF8, "application/json");
+
+            if (_edit)
+                response = await Http.PostAsync("api/User/UpdateStudent", bodyContent);
+            else
+                response = await Http.PostAsync("api/User/CreateStudent", bodyContent);
+
+
+            responseResult = response.Content.ReadAsStringAsync().Result;
+
+            if (response.IsSuccessStatusCode)
+            {
+            }
+            else
+            {
+                _mes = responseResult;
+                return;
+            }
+
+            Student = new();
+            Student.User = new User();
+            Student.Groups.Clear(); // = new Group() { Id = -1 };
+            _mes = "";
+        }
+        catch(Exception exp)
+        {
+            //Student.User.PasswordHash = password;
+            _mes = exp.Message;
+        }
+
+
+    }
+
+    private async Task CreateUserAsync()
+    {
+        //var user = Activator.CreateInstance<AspNetUsers>();
+        //await _userStore.SetUserNameAsync(user, UserModelForm.UserName, CancellationToken.None);
+        //await ((IUserEmailStore<AspNetUsers>)_userStore).SetEmailAsync(user, UserModelForm.Email, CancellationToken.None);
+
+
+        //var r = await _userManager.CreateAsync(user, UserModelForm.Password);
+        //if (r.Errors.Count() > 0)
+        //{
+        //    _mes = r.Errors.ElementAt(0).Description;
+        //    return;
+        //}
+
+
+        //if (UserModelForm is StudentModelForm studentModelForm)
+        //{
+        //    var group = groups.First(x => x.Name == studentModelForm.Group);
+
+        //    Student student = new()
+        //        {
+        //            FirstName = studentModelForm.FirstName,
+        //            LastName = studentModelForm.LastName,
+        //            FatherName = studentModelForm.FatherName,
+        //            Group = group
+        //        };
+
+        //    _db.Students.Add(student);
+        //    user.Student = student;
+
+        //    await _userManager.AddToRoleAsync(user, "Students");
+        //    groups.Clear();
+        //    UserModelForm = new StudentModelFormCreate();
+        //}
+        //else
+        //{
+        //    var teacherModelForm = UserModelForm as TeacherModelForm;
+
+        //    var grs = new List<Group>();
+        //    foreach (var item in teacherModelForm.Groups)
+        //    {
+        //        grs.Add(groups.First(x => x.Name == item));
+        //    }
+
+        //    Teacher teacher = new()
+        //        {
+        //            FirstName = teacherModelForm.FirstName,
+        //            LastName = teacherModelForm.LastName,
+        //            FatherName = teacherModelForm.FatherName,
+        //            Groups = grs
+        //        };
+
+        //    _db.Teachers.Add(teacher);
+        //    user.Teacher = teacher;
+
+
+        //    await _userManager.AddToRoleAsync(user, "Teachers" /*Enums.Roles.Student.ToString()*/);
+        //    groups.Clear();
+        //    _groupsTeacher.Clear();
+        //    UserModelForm = new TeacherModelFormCreate();
+        //}
+
+        //_notification.ShowMessage(Constants.MES_ADD);
+    }
+
+}

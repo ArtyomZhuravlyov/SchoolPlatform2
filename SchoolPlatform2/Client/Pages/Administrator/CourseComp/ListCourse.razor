@@ -1,0 +1,116 @@
+﻿@page "/ListCourse"
+@using Newtonsoft.Json;
+@using SchoolPlatform2.Shared.DTO;
+@using System.Text;
+@inject HttpClient Http
+
+@if (_isLoading)
+{
+    <div>
+        Loading
+    </div>
+}
+else
+{
+    <div>@_mes</div>
+    @if (_course != null)
+    {
+        <CreateEditCourse Course="_course" RefreshListCourse="Refresh"></CreateEditCourse>
+    }
+
+    <button @onclick="() =>  _course = new CourseDTO()">Создать курс</button>
+    <div class="table_admin">
+        <table border="1">
+            <tr>
+                <th></th>
+                <th></th>
+                <th>Название</th>
+            </tr>
+
+            @foreach (var item in _courses)
+            {
+                <tr>
+                    <td>
+                        <div class="edit_delete_item" @onclick="(()=>Delete(item))"><img src="img\delete.png" alt="delete"></div>
+                    </td>
+                    <td>
+                        <div class="edit_delete_item" @onclick="(()=>OpenChanged(item))"><img src="img\edit.png" alt="edit"></div>
+                    </td>
+                    <td class="nowrap">@item.Name</td>
+                </tr>
+                <tr>
+
+                </tr>
+            }
+        </table>
+    </div>
+}
+
+
+@*<CreateEditGroupComp ShowList="ShowList" Group="_group"></CreateEditGroupComp>*@
+
+
+@code {
+    List<CourseDTO> _courses;
+    bool _isLoading;
+    bool _showCourse;
+    CourseDTO _course;
+    string _mes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+
+        _courses = await Http.GetFromJsonAsync<List<CourseDTO>>("api/Course/GetCourses");
+        //_groups = _db.Groups.ToList();
+        //educationalInstitutions = _db.EducationalInstitutions.Include(x => x.Groups).ToList();
+        _isLoading = false;
+
+    }
+
+    private void OpenChanged(CourseDTO course)
+    {
+        _course = course;
+    }
+
+    private async Task Delete(CourseDTO course)
+    {
+
+        var content = JsonConvert.SerializeObject(course);
+        var bodyContent = new StringContent(content, Encoding.UTF8, "application/json");
+
+        HttpResponseMessage response = await Http.PostAsync("api/Course/Delete", bodyContent);
+
+        string responseResult = response.Content.ReadAsStringAsync().Result;
+
+        if (response.IsSuccessStatusCode)
+        {
+            _mes = "success";
+            _courses = await Http.GetFromJsonAsync<List<CourseDTO>>("api/Course/GetCourses");
+        }
+        else
+        {
+            _mes = responseResult;
+        }
+
+    }
+
+    private async Task Refresh()
+    {
+        _isLoading = true;
+        _course = null;
+        _courses = await Http.GetFromJsonAsync<List<CourseDTO>>("api/Course/GetCourses");
+        //_groups = _db.Groups.ToList();
+        //educationalInstitutions = _db.EducationalInstitutions.Include(x => x.Groups).ToList();
+        _isLoading = false;
+    }
+
+
+    //private string GetVisibleClass(Module module)
+    //{
+    //    if (listIdModuleInvisible.Contains(module))
+    //        return "display: none;";
+    //    else
+    //        return "";
+    //}
+}

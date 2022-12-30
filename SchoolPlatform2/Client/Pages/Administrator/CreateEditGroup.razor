@@ -1,0 +1,241 @@
+﻿@using Newtonsoft.Json;
+@using SchoolPlatform2.DataAccess.UserDA;
+@using SchoolPlatform2.DataAccess;
+@using SchoolPlatform2.Shared;
+@using System.Text;
+@inject HttpClient Http
+@*@inject ClientUserService _userService*@
+
+@if (_isLoading)
+{
+    <div>Загрузка</div>
+}
+else
+{
+    <div>@_mes</div>
+
+    <EditForm class="new" Model="Group" OnValidSubmit="OnValidSubmitAsync">
+        <DataAnnotationsValidator />
+
+        <div class="item">
+            <div class="main_name">Название</div>
+            <InputText @bind-Value="Group.Name"></InputText>
+        </div>
+
+        <div class="item long_item_short_select">
+            <div class="main_name">Добавить ученика</div>
+            <InputSelect Value="@_temp" ValueExpression="@(()=>_temp)" ValueChanged="@((string value) => SelectAndAddStudent(int.Parse(value)))">
+                <option selected value="-1">Выберите ученика</option>
+                @foreach (var item in _accessStudents)
+                {
+                    <option value="@item.Id">@item.User.Name @item.User.LastName</option>
+                }
+            </InputSelect>
+        </div>
+        @if (Group.Students.Count > 0)
+        {
+            <div class="item long_item_short_select">
+                <div class="groups_with_teacher">
+                    <div class="main_name">Привязанные ученики</div>
+                    @foreach (var item in Group.Students)
+                    {
+                        <div class="group_with_teacher">
+                            <div class="group_with_teacher_name">
+                                @item.User.Name @item.User.LastName
+                            </div>
+                            <div @onclick="()=>DelStudent(item.Id)" class="del_group_with_teacher"><img src="img\del.png" alt=""></div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="item long_item_short_select">
+            <div class="main_name">Добавить учителя</div>
+            <InputSelect Value="@_temp" ValueExpression="@(()=>_temp)" ValueChanged="@((string value) => SelectAndAddTeacher(int.Parse(value)))">
+                <option selected value="-1">Выберите учителя</option>
+                @foreach (var item in _accessTeachers)
+                {
+                    <option value="@item.Id">@item.User.Name @item.User.LastName</option>
+                }
+            </InputSelect>
+        </div>
+        @if (Group.Teachers.Count > 0)
+        {
+            <div class="item long_item_short_select">
+                <div class="groups_with_teacher">
+                    <div class="main_name">Привязанные учителя</div>
+                    @foreach (var item in Group.Teachers)
+                    {
+                        <div class="group_with_teacher">
+                            <div class="group_with_teacher_name">
+                                @item.User.Name @item.User.LastName
+                            </div>
+                            <div @onclick="()=>DelTeacher(item.Id)" class="del_group_with_teacher"><img src="img\del.png" alt=""></div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="item middle_item_short_select">
+            <div class="main_name">Курс</div>
+            <InputSelect @bind-Value="Group.Course.Id">
+                @if (Group.Course != null || Group.Course.Id.ToString() == "-1" || _courses.Count == 0)
+                {
+                    Group.Course.Id = -1;
+                    <option selected value="-1">Выберите курс</option>
+                }
+
+                @foreach (var item in _courses)
+                {
+                    @if (String.Equals(item.Name, Group.Course.Name,
+               StringComparison.OrdinalIgnoreCase))
+                    {
+                        <option selected value="@Group.Course.Id">@Group.Course.Name</option>
+                    }
+                    else
+                    {
+                        <option value="@item.Id">@item.Name</option>
+                    }
+                }
+            </InputSelect>
+        </div>
+
+        <button class="save_btn">@_messageBtn</button>
+    </EditForm>
+
+}
+
+
+@code {
+    [Parameter] public Group Group { get; set; }
+
+
+    bool _isLoading;
+    bool _edit;
+    string _mes = "";
+    string _messageBtn = "";
+    List<Student> _accessStudents;
+    List<Teacher> _accessTeachers;
+    List<Course> _courses;
+    string _temp = "-1";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        _edit = Group != null;
+        _messageBtn = _edit ? SD.BTN_CHANGE : SD.BTN_ADD;
+
+        //HttpResponseMessage response;
+        //response = await Http.PostAsync("api/Group/CreateGroup", bodyContent);
+
+        //string responseResult = response.Content.ReadAsStringAsync().Result;
+
+        //if (response.IsSuccessStatusCode)
+        //{
+        //    _mes = "success";
+        //    Group = new Group();
+        //    Group.Course = new Course() { Id = -1 };
+        //}
+        //else
+        //{
+        //    _mes = responseResult;
+        //    return;
+        //}
+
+
+        _accessStudents = await Http.GetFromJsonAsync<List<Student>>("api/User/GetStudents");
+        _accessTeachers = await Http.GetFromJsonAsync<List<Teacher>>("api/User/GetTeachers");
+        _courses = await Http.GetFromJsonAsync<List<Course>>("api/Course/GetCourses");
+
+        if (_edit)
+        {
+            _accessStudents.RemoveAll(x => Group.Students.Select(x => x.Id).Contains(x.Id));
+            _accessTeachers.RemoveAll(x => Group.Teachers.Select(x => x.Id).Contains(x.Id));
+        }
+        else
+        {
+            Group = new();
+            Group.Course = new Course() { Id = -1 };
+        }
+
+        //foreach (var item in _accessStudents)
+        //{
+        //    item.Groups.Clear();
+        //}
+
+        //foreach (var item in _accessTeachers)
+        //{
+        //    item.Groups.Clear();
+        //}
+
+
+        //_groups = _db.Groups.ToList();
+        //educationalInstitutions = _db.EducationalInstitutions.Include(x => x.Groups).ToList();
+        _isLoading = false;
+    }
+
+    private void DelStudent(int studentId)
+    {
+        _accessStudents.Add(Group.Students.First(x => x.Id == studentId));
+        Group.Students.RemoveAll(x => x.Id == studentId);
+    }
+
+    private void SelectAndAddStudent(int studentId)
+    {
+        Group.Students.Add(_accessStudents.First(x => x.Id == studentId));
+        _accessStudents.RemoveAll(x => x.Id == studentId);
+    }
+
+    private void DelTeacher(int teacherId)
+    {
+        _accessTeachers.Add(Group.Teachers.First(x => x.Id == teacherId));
+        Group.Teachers.RemoveAll(x => x.Id == teacherId);
+    }
+
+    private void SelectAndAddTeacher(int teacherId)
+    {
+        Group.Teachers.Add(_accessTeachers.First(x => x.Id == teacherId));
+        _accessTeachers.RemoveAll(x => x.Id == teacherId);
+    }
+
+
+    private async Task OnValidSubmitAsync()
+    {
+        // await Http.GetFromJsonAsync<bool>("api/User/GetVerifyPhone");
+        //if (Group.Course.Id == -1)
+        //    Group.Course = null;
+
+        var content = JsonConvert.SerializeObject(Group);
+        var bodyContent = new StringContent(content, Encoding.UTF8, "application/json");
+
+        HttpResponseMessage response;
+
+        if (_edit)
+            response = await Http.PostAsync("api/Group/UpdateGroup", bodyContent);
+        else
+            response = await Http.PostAsync("api/Group/CreateGroup", bodyContent);
+
+        string responseResult = response.Content.ReadAsStringAsync().Result;
+
+        if (response.IsSuccessStatusCode)
+        {
+            _mes = "success";
+            Group = new Group();
+            Group.Course = new Course() { Id = -1 };
+
+            _accessStudents = await Http.GetFromJsonAsync<List<Student>>("api/User/GetStudents");
+            _accessTeachers = await Http.GetFromJsonAsync<List<Teacher>>("api/User/GetTeachers");
+        }
+        else
+        {
+            _mes = responseResult;
+            //if (Group.Course == null)
+            //    Group.Course = new Course() { Id = -1 };
+            return;
+        }
+
+    }
+
+}

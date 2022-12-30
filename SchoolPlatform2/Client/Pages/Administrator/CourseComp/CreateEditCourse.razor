@@ -1,0 +1,151 @@
+﻿@using Newtonsoft.Json;
+@using SchoolPlatform2.Shared.DTO;
+@using System.Text;
+@using SchoolPlatform2.Shared;
+@*@page "/ListCourse/CreateEditCourse/{IdCourse:int}"*@
+@inject HttpClient Http
+
+
+@if (_isLoading)
+{
+    <div>Загрузка</div>
+}
+else
+{
+    <div>@_mes</div>
+
+    <EditForm class="new" Model="Course" OnValidSubmit="OnValidSubmitAsync">
+        <DataAnnotationsValidator />
+
+        <div class="item">
+            <div class="main_name">Название</div>
+            <InputText @bind-Value="Course.Name"></InputText>
+        </div>
+
+        <div class="item">
+            <div class="main_name">Описание</div>
+            <InputText @bind-Value="Course.Description"></InputText>
+        </div>
+
+
+
+
+
+        <button @onclick="() =>  _lesson = new LessonDTO()">Создать урок</button>
+        <div class="table_admin">
+            <table border="1">
+                <tr>
+                    <th></th>
+                    <th></th>
+                    <th>Название</th>
+                </tr>
+
+                @foreach (var item in _lessons)
+                {
+                    <tr>
+                        <td>
+                            <div class="edit_delete_item" @onclick="(()=>Delete(item))"><img src="img\delete.png" alt="delete"></div>
+                        </td>
+                        <td>
+                            <div class="edit_delete_item" @onclick="(()=>OpenChanged(item))"><img src="img\edit.png" alt="edit"></div>
+                        </td>
+                        <td class="nowrap">@item.Name</td>
+                    </tr>
+                    <tr>
+                    </tr>
+                }
+            </table>
+        </div>
+
+        @if (_lesson != null)
+        {
+            <CreateEditLesson Lesson="_lesson"></CreateEditLesson>
+        }
+
+        <button class="save_btn">@_messageBtn</button>
+    </EditForm>
+}
+
+
+@code {
+
+    //[Parameter] public int IdCourse { get; set; }
+
+    [Parameter] public CourseDTO Course { get; set; }
+
+    [Parameter] public EventCallback RefreshListCourse { get; set; }
+
+    bool _isLoading;
+    bool _edit;
+    string _mes = "";
+    string _messageBtn = "";
+    List<LessonDTO> _lessons = new();
+    LessonDTO _lesson;
+    string _temp = "-1";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true;
+        _edit = Course.Id != 0;
+        _messageBtn = _edit ? SD.BTN_CHANGE : SD.BTN_ADD;
+
+        //if(IdCourse != 0)
+        //Course = await Http.GetFromJsonAsync<CourseDTO>($"api/Course/GetCourse/{IdCourse}");
+        if (_edit)
+            _lessons = await Http.GetFromJsonAsync<List<LessonDTO>>($"api/Lesson/GetLessons/{Course.Id}");
+
+        //if (_edit)
+        //{
+        //    _accessStudents.RemoveAll(x => Group.Students.Select(x => x.Id).Contains(x.Id));
+        //    _accessTeachers.RemoveAll(x => Group.Teachers.Select(x => x.Id).Contains(x.Id));
+        //}
+        //else
+        //{
+        //    Group = new();
+        //    Group.Course = new Course() { Id = -1 };
+        //}
+
+
+        _isLoading = false;
+    }
+
+    private void OpenChanged(LessonDTO lesson)
+    {
+        _lesson = lesson;
+    }
+
+    private void Delete(LessonDTO lesson)
+    {
+        _lesson = lesson;
+    }
+
+    private async Task OnValidSubmitAsync()
+    {
+
+        var content = JsonConvert.SerializeObject(Course);
+        var bodyContent = new StringContent(content, Encoding.UTF8, "application/json");
+
+        HttpResponseMessage response;
+
+        if (_edit)
+            response = await Http.PostAsync("api/Course/UpdateCourse", bodyContent);
+        else
+            response = await Http.PostAsync("api/Course/CreateCourse", bodyContent);
+
+        string responseResult = response.Content.ReadAsStringAsync().Result;
+
+        if (response.IsSuccessStatusCode)
+        {
+            _mes = "success";
+            await RefreshListCourse.InvokeAsync();
+        }
+        else
+        {
+            _mes = responseResult;
+            //if (Group.Course == null)
+            //    Group.Course = new Course() { Id = -1 };
+            return;
+        }
+
+    }
+}
